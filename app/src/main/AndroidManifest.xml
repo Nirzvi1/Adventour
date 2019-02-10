@@ -39,7 +39,8 @@
 
         <activity
             android:name=".Explore"
-            android:label="@string/title_activity_explore"></activity>
+            android:label="@string/title_activity_explore" />
+        <activity android:name=".ChallengeActivity"></activity>
     </application>
 
 </manifest>

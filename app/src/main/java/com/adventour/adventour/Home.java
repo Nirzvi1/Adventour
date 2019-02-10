@@ -15,6 +15,7 @@ import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.ListAdapter;
@@ -29,10 +30,15 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class Home extends AppCompatActivity {
 
-    User u;
+    public static User u;
+    private int i = 0;
+
+    public static Home instance;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,36 +47,106 @@ public class Home extends AppCompatActivity {
 //        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
 //        setSupportActionBar(toolbar);
 
-        u = Database.readUser("000000");
-        u.addCompleted(0);
-        u.addCreated(1);
-        Database.writeUser(u);
+        instance = this;
 
-        ArrayList<Long> u_com = u.getCompleted();
-        ArrayList<String> c_com = new ArrayList<>();
+        drawLists();
 
-        for (Long m : u_com) {
-            c_com.add(Database.readChallenge(m).getActivity());
-        }
+    }
 
-        ArrayList<Long> u_cre = u.getCreated();
-        ArrayList<String> c_cre = new ArrayList<>();
+    public void drawLists() {
 
-        for (Long m : u_cre) {
-            c_cre.add(Database.readChallenge(m).getActivity());
-        }
+        Database.read("users/user000000", new Callback() {
 
-        ArrayAdapter<String> completed = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, android.R.id.text1, c_com);
+            @Override
+            public void receive(Object m) {
+                HashMap<String, Object> map = (HashMap<String, Object>) m;
+                Log.i("MAP", map.toString());
+                u = new User(map);
 
-        ListView chall_compl = (ListView) findViewById(R.id.list_completed);
-        chall_compl.setAdapter(completed);
+                final ArrayList<Long> u_com = u.getCompleted();
+                final ArrayList<String> c_com = new ArrayList<>();
+                final ArrayList<Challenge> ch_com = new ArrayList<>();
 
+                Database.read("challenges/challenge" + u_com.get(u_com.size() - 1), genIterativeCallback(u_com.size() - 1, new Callback() {
 
-        ArrayAdapter<String> created = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, android.R.id.text1, c_cre);
+                    @Override
+                    public void receiveIterative(Object o, int i) {
+                        HashMap<String, Object> mp = ((HashMap<String, Object>) ((Object[]) o)[0]);
+                        Callback next = ((Callback) ((Object[]) o)[1]);
 
-        ListView chall_create = (ListView) findViewById(R.id.list_created);
-        chall_create.setAdapter(created);
+                        c_com.add((String) (mp.get("activity")));
+                        ch_com.add(new Challenge(mp));
+                        if (i > 0) {
+                            Database.read("challenges/challenge" + u_com.get(i - 1), next);
+                        } else {
 
+                            final ArrayList<Long> u_cre = u.getCreated();
+                            final ArrayList<String> c_cre = new ArrayList<>();
+                            final ArrayList<Challenge> ch_cre = new ArrayList<>();
+
+                            Database.read("challenges/challenge" + u_cre.get(u_cre.size() - 1), genIterativeCallback(u_cre.size() - 1, new Callback() {
+                                @Override
+                                public void receiveIterative(Object o, int i) {
+                                    HashMap<String, Object> ma = ((HashMap<String, Object>) ((Object[]) o)[0]);
+                                    Callback next = ((Callback) ((Object[]) o)[1]);
+
+                                    c_cre.add((String) (ma.get("activity")));
+                                    ch_cre.add(new Challenge(ma));
+                                    if (i > 0) {
+                                        Database.read("challenges/challenge" + u_com.get(i - 1), next);
+                                    } else {
+
+                                        Home.this.runOnUiThread(new Runnable() {
+                                            @Override
+                                            public void run() {
+
+                                                ((TextView) findViewById(R.id.name)).setText(u.getUserName());
+                                                ((TextView) findViewById(R.id.points)).setText("Points: " + u.getPoints().get("Ottawa").first);
+
+                                                ArrayAdapter<String> completed = new ArrayAdapter<String>(Home.this, android.R.layout.simple_list_item_1, android.R.id.text1, c_com);
+
+                                                ListView chall_compl = (ListView) findViewById(R.id.list_completed);
+                                                chall_compl.setAdapter(completed);
+                                                chall_compl.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                                                    @Override
+                                                    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                                                        Intent ch = new Intent(Home.this, ChallengeActivity.class);
+                                                        ChallengeActivity.ch = ch_com.get(position);
+                                                        startActivity(ch);
+                                                    }
+                                                });
+
+                                                ArrayAdapter<String> created = new ArrayAdapter<String>(Home.this, android.R.layout.simple_list_item_1, android.R.id.text1, c_cre);
+
+                                                ListView chall_create = (ListView) findViewById(R.id.list_created);
+                                                chall_create.setAdapter(created);
+                                                chall_create.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                                                    @Override
+                                                    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                                                        Intent ch = new Intent(Home.this, ChallengeActivity.class);
+                                                        ChallengeActivity.ch = ch_cre.get(position);
+                                                        startActivity(ch);
+                                                    }
+                                                });
+                                            }
+                                        });
+                                    }
+                                }
+                            }));
+                        }
+                    }
+                }));
+            }
+        });
+    }
+
+    public static Callback genIterativeCallback(final int i, final Callback step) {
+        return new Callback() {
+            @Override
+            public void receive(Object o) {
+                step.receiveIterative(new Object[]{o, genIterativeCallback(i - 1, step)}, i);
+            }
+        };
     }
 
     @Override
@@ -99,5 +175,6 @@ public class Home extends AppCompatActivity {
         Intent explore = new Intent(this, Explore.class);
         startActivity(explore);
     }
+
 
 }

@@ -1,5 +1,7 @@
 package com.adventour.adventour;
 
+import android.util.Log;
+
 import com.adventour.adventour.data.Badge;
 import com.adventour.adventour.data.Challenge;
 import com.adventour.adventour.data.User;
@@ -17,6 +19,7 @@ import java.util.HashMap;
  */
 
 public class Database {
+
 
     public static void write(DatabaseReference rf, String path, Object val) {
         rf.child(path).setValue(val);
@@ -38,12 +41,41 @@ public class Database {
         FirebaseDatabase.getInstance().getReference("badges/badge" + b.getBadgeId()).setValue(b);
     }
 
-    public static HashMap<String, Object> read(DatabaseReference rf, String path) {
-        final HashMap<String, Object> map = new HashMap();
-        rf.child(path).addListenerForSingleValueEvent(new ValueEventListener() {
+    public static HashMap<String, Object> blockingRead(final String path) {
+
+        final HashMap<String, Object> map = new HashMap<>();
+
+
+        Thread r = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                FirebaseDatabase.getInstance().getReference().child(path).addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        map.putAll(readDataSnapshot(dataSnapshot));
+                    }
+
+                    @Override
+                    public void onCancelled(DatabaseError databaseError) {
+
+                    }
+                });
+
+
+            }
+        });
+        r.start();
+
+
+        return map;
+    }
+
+    public static HashMap<String, Object> read(final String path, final Callback dc) {
+        final HashMap<String, Object> map = new HashMap<>();
+        FirebaseDatabase.getInstance().getReference().child(path).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                map.put(dataSnapshot.getKey(), dataSnapshot.getValue());
+                dc.receive(readDataSnapshot(dataSnapshot));
             }
 
             @Override
@@ -55,16 +87,20 @@ public class Database {
         return map;
     }
 
-    public static User readUser(String userId) {
-        return new User(read(FirebaseDatabase.getInstance().getReference(), "users/user" + userId));
+    public static HashMap<String, Object> readDataSnapshot(DataSnapshot d) {
+        HashMap<String, Object> map = new HashMap<>();
+
+        Iterable<DataSnapshot> it = d.getChildren();
+        for (DataSnapshot c : it) {
+            if (c.getChildrenCount() > 0) {
+                map.put(c.getKey(), readDataSnapshot(c));
+            } else {
+                map.put(c.getKey(), c.getValue());
+            }
+        }
+
+        return map;
     }
 
-    public static Challenge readChallenge (long challengeId) {
-        return new Challenge(read(FirebaseDatabase.getInstance().getReference(), "challenges/challenge" + challengeId));
-    }
-
-    public static Badge readBadge(int badgeId) {
-        return new Badge(read(FirebaseDatabase.getInstance().getReference(), "badges/badge" + badgeId));
-    }
 
 }

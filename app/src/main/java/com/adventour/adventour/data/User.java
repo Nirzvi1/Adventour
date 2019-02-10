@@ -3,9 +3,13 @@ package com.adventour.adventour.data;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Set;
 
 
 public class User extends Document {
+
+    String[] fields = {"userId", "userName", "password", "authToken",
+                        "location", "isDiscoverable", "points", "badges", "completed", "created"};
 
     //ctor when nothing is known about the user (null value)
     public User() {
@@ -15,7 +19,7 @@ public class User extends Document {
         put("authToken", "000000");
         put("location", new Pair(0d,0d));
         put("isDiscoverable", false);
-        put("points", new HashMap<String, Pair<Double>>());
+        put("points", new HashMap<String, Pair<Long>>());
         put("badges", new ArrayList<Integer>());
         put("completed", new ArrayList<Long>());
         put("created", new ArrayList<Long>());
@@ -31,7 +35,31 @@ public class User extends Document {
 
     public User(HashMap<String, Object> map) {
         this();
-        putAll(map);
+        for (String f : fields) {
+            if (f.equals("badges") && map.containsKey(f)) {
+               put("badges", convertFromInt((HashMap<String, Integer>) map.get("badges")));
+            } else if (f.equals("completed") && map.containsKey(f)) {
+                put("completed", convertFromLong((HashMap<String, Long>) map.get("completed")));
+            } else if (f.equals("created") && map.containsKey(f)) {
+                put("created", convertFromLong((HashMap<String, Long>) map.get("created")));
+            } else if (f.equals("location") && map.containsKey(f)) {
+                try {
+                    put("location", convertFromPairDouble((HashMap<String, Double>) map.get("location")));
+                } catch (ClassCastException e) {
+                    put("location", convertFromPairLong((HashMap<String, Long>) map.get("location")));
+                }
+            } else if (f.equals("points") && map.containsKey(f)) {
+                HashMap<String, HashMap<String, Long>> m = (HashMap<String, HashMap<String, Long>>) map.get(f);
+                HashMap<String, Pair<Long>> newM = new HashMap<>();
+                Set<Entry<String, HashMap<String, Long>>> entries = m.entrySet();
+                for (Entry<String, HashMap<String, Long>> e : entries) {
+                    newM.put(e.getKey(), new Pair<Long>(e.getValue().get("first"), e.getValue().get("second")));
+                }
+                put("points", newM);
+            } else {
+                put(f, map.get(f));
+            }
+        }
     }
 
     public String getUserId() {
@@ -76,15 +104,15 @@ public class User extends Document {
         put("isDiscoverable", discoverable);
     }
     
-    public HashMap<String, double[]> getPoints() {
-        return (HashMap<String, double[]>) get("points");
+    public HashMap<String, Pair<Long>> getPoints() {
+        return (HashMap<String, Pair<Long>>) get("points");
     }
-    public void putPoints(String city, double[] points) {
-        getPoints().put(city, points);
+    public void putPoints(String city, Pair<Long> p) {
+        getPoints().put(city, p);
     }
-    public void addToPoints(String city, double[] points) {
-        double[] cur_pts = getPoints().get(city); 
-        getPoints().put(city, new double[] {cur_pts[0], cur_pts[1]});
+    public void addToPoints(String city, Pair<Long> p) {
+        Pair<Long> cur_pts = getPoints().get(city);
+        getPoints().put(city, new Pair<Long>(cur_pts.first + p.first, cur_pts.second + p.second));
     }
 
     public ArrayList<Integer> getBadges() {
@@ -104,7 +132,7 @@ public class User extends Document {
         ((ArrayList<Long>) get("completed")).add(completed);
     }
     public void removeCompleted(long completed) {
-        ((ArrayList<Long>) get("completed")).remove((Long) completed);
+        ((ArrayList<Long>) get("completed")).remove(completed);
     }
 
     public ArrayList<Long> getCreated() {
@@ -114,7 +142,7 @@ public class User extends Document {
         ((ArrayList<Long>) get("created")).add(created);
     }
     public void removeCreated(long created) {
-        ((ArrayList<Long>) get("created")).remove((Long) created);
+        ((ArrayList<Long>) get("created")).remove(created);
     }
     
 }

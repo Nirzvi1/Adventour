@@ -4,14 +4,19 @@ import java.util.HashMap;
 
 public class Challenge extends Document {
 
+    private static final long serialVersionUID = 7526472295622776147L;
+
+    String[] fields = {"challengeId", "activity", "city", "votes",
+            "location", "difficulty"};
+
     //ctor when nothing is known about the user (null value)
     public Challenge() {
         put("challengeId", 0l);
-        put("activity", "Nothing");
+        put("activity", "Nothing?");
         put("city", "Ottawa");
-        put("votes", 0);
+        put("votes", 0l);
         put("location", new Pair<Double>(0d, 0d));
-        put("difficulty", 0);
+        put("difficulty", 0l);
     }
 
     public Challenge(long challengeId, String activity, String city, int difficulty) {
@@ -24,7 +29,17 @@ public class Challenge extends Document {
 
     public Challenge(HashMap<String, Object> map) {
         this();
-        putAll(map);
+        for (String f : fields) {
+            if (f.equals("location") && map.containsKey(f)) {
+                try {
+                    put("location", convertFromPairDouble((HashMap<String, Double>) map.get("location")));
+                } catch (ClassCastException e) {
+                    put("location", convertFromPairLong((HashMap<String, Long>) map.get("location")));
+                }
+            } else {
+                put(f, map.get(f));
+            }
+        }
     }
 
     public long getChallengeId() {
@@ -48,24 +63,24 @@ public class Challenge extends Document {
         put("city", city);
     }
 
-    public int getVotes() {
-        return (int) get("votes");
+    public long getVotes() {
+        return (long) get("votes");
     }
-    public void setVotes(int votes) {
+    public void setVotes(long votes) {
         put("votes", votes);
     }
 
-    public double[] getLocation() {
-        return (double[]) get("location");
+    public Pair<Double> getLocation() {
+        return (Pair<Double>) get("location");
     }
-    public void setLocation(double[] location) {
+    public void setLocation(Pair<Double> location) {
         put("location", location);
     }
 
-    public int difficulty() {
-        return (int) get("difficulty");
+    public long getDifficulty() {
+        return (long) get("difficulty");
     }
-    public void setDifficulty(int difficulty) {
+    public void setDifficulty(long difficulty) {
         put("difficulty", difficulty);
     }
 
